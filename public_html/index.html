@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Zeus Marker</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body{
+                font-family:"Lato", sans-serif;
+            }
+            .sidenav {
+                height: 100%;
+                width: 0;
+                position: fixed;
+                z-index: 1;
+                top: 0;
+                left: 0;
+                background-color: #C2DADD;
+                overflow-x: hidden;
+                transition: 0.5s;
+                padding-top: 60px;
+            }
+
+            .sidenav a {
+                padding: 8px 8px 8px 32px;
+                text-decoration: none;
+                font-size: 25px;
+                color: #818181;
+                display: block;
+                transition: 0.3s;
+            }
+
+            .sidenav a:hover {
+                color: #f1f1f1;
+            }
+
+            .sidenav .closebtn {
+                position: absolute;
+                top: 0;
+                right: 25px;
+                font-size: 36px;
+                margin-left: 50px;
+            }
+
+            #main {
+                transition: margin-left .5s;
+                padding: 16px;
+            }
+
+            @media screen and (max-height: 450px) {
+                .sidenav {padding-top: 15px;}
+                .sidenav a {font-size: 18px;}
+            }
+        </style>
+        <style>
+            #map{
+                position:absolute;
+                width: 70%;
+                height: 90%;
+                right:0%;
+            }
+            html, body {
+                height:100%;
+                margin:0;
+                padding:0;
+            }
+            #floating-panel {
+                position: absolute;
+                top: 10px;
+                left: 25%;
+                z-index: 5;
+                background-color: #fff;
+                padding: 5px;
+                border: 1px solid #999;
+                text-align: center;
+                font-family: 'Roboto','sans-serif';
+                line-height: 30px;
+                padding-left: 10px;
+            }
+            #floating-options {
+                background-color: #fff;
+                border:1px solid #999;
+                left: 25%;
+                padding: 5px;
+                position:static;
+                top: 10px;
+                z-index: 5;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div id="mySidenav" class="sidenav">
+            <a href="javascript:void(0)" class="closebtn" onclick="closeNav()">&times;</a>
+            <a href="#">About</a>
+            <a href="#">About</a>
+            <a href="#">About</a>
+            <a href="#">About</a>
+        </div>
+
+        <div id="main">
+            <span style="font-size: 30px;cursor:pointer"
+                  onclick="openNav()">&#9776; Menu</span>
+        </div>
+
+        <div id="map"></div>
+        <div id="floating-options">
+            <button onclick="toggleHeatmap()">Toggle Heatmap</button>
+            <button onclick="hidePedmap()">HIDE Pedestrian</button>
+            <button onclick="showPedmap()">Show Pedestrian</button>
+            <button onclick="hideGunshot()">HIDE GUNSHOT</button>
+            <button onclick="showGunshot()">SHOW GUNSHOT</button>
+
+        </div>
+
+        <script>
+            var map;
+            var id;
+            var markers1 = [];
+            var markers2 = [];
+            var uniqueId = 1;
+            var startMap = {lat: 32.7157, lng: -117.1611};
+            function addYourLocationButton(map, marker) {
+                var controlDiv = document.createElement('div');
+                var firstChild = document.createElement('button');
+                firstChild.style.backgroundColor = '#fff';
+                firstChild.style.border = 'none';
+                firstChild.style.outline = 'none';
+                firstChild.style.width = '28px';
+                firstChild.style.height = '28px';
+                firstChild.style.borderRadius = '2px';
+                firstChild.style.boxShadow = '0 1px 4px rgba(0,0,0,0.3)';
+                firstChild.style.cursor = 'pointer';
+                firstChild.style.marginRight = '10px';
+                firstChild.style.padding = '0px';
+                firstChild.title = 'Your Location';
+                controlDiv.appendChild(firstChild);
+                var secondChild = document.createElement('div');
+                secondChild.style.margin = '5px';
+                secondChild.style.width = '18px';
+                secondChild.style.height = '18px';
+                secondChild.style.backgroundImage = 'url(https://maps.gstatic.com/tactile/mylocation/mylocation-sprite-1x.png)';
+                secondChild.style.backgroundSize = '180px 18px';
+                secondChild.style.backgroundPosition = '0px 0px';
+                secondChild.style.backgroundRepeat = 'no-repeat;'
+                secondChild.id = 'you_location_img';
+                firstChild.appendChild(secondChild);
+                google.maps.event.addListener(map, 'dragend', function () {
+                    $('#you_location_img').css('background-position', '0px 0px');
+                });
+                firstChild.addEventListener('click', function () {
+                    var imgX = '0';
+                    var animationInterval = setInterval(function () {
+                        if (imgX == '-18')
+                            imgX = '0';
+                        else
+                            imgX = '-18';
+                        $('#you_location_img').css('background-position', imgX + 'px 0px');
+                    }, 500);
+                    if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(function (position) {
+                            var latlng = new google.maps.LatLng(position.coords.latitude, position.coords.longitude);
+                            marker.setPosition(latlng);
+                            map.setCenter(latlng);
+                            clearInterval(animationInterval);
+                            $('#you_location_img').css('background-position', '-144px 0px');
+                        });
+                    } else {
+                        clearInterval(animationInterval);
+                        $('#you_location_img').css('background-position', '0px 0px');
+                    }
+                });
+                controlDiv.index = 1;
+                map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(controlDiv);
+            }
+
+            function initMap() {
+                map = new google.maps.Map(document.getElementById('map'), {
+                    zoom: 13,
+                    center: startMap,
+                    styles: [
+                        {elementType: 'geometry', stylers: [{color: '#242f3e'}]},
+                        {elementType: 'labels.text.stroke', stylers: [{color: '#242f3e'}]},
+                        {elementType: 'labels.text.fill', stylers: [{color: '#746855'}]},
+                        {
+                            featureType: 'administrative.locality',
+                            elementType: 'labels.text.fill',
+                            stylers: [{color: '#d59563'}]
+                        },
+                        {
+                            featureType: 'poi',
+                            elementType: 'labels.text.fill',
+                            stylers: [{color: '#d59563'}]
+                        },
+                        {
+                            featureType: 'poi.park',
+                            elementType: 'geometry',
+                            stylers: [{color: '#263c3f'}]
+                        },
+                        {
+                            featureType: 'poi.park',
+                            elementType: 'labels.text.fill',
+                            stylers: [{color: '#6b9a76'}]
+                        },
+                        {
+                            featureType: 'road',
+                            elementType: 'geometry',
+                            stylers: [{color: '#38414e'}]
+                        },
+                        {
+                            featureType: 'road',
+                            elementType: 'geometry.stroke',
+                            stylers: [{color: '#212a37'}]
+                        },
+                        {
+                            featureType: 'road',
+                            elementType: 'labels.text.fill',
+                            stylers: [{color: '#9ca5b3'}]
+                        },
+                        {
+                            featureType: 'road.highway',
+                            elementType: 'geometry',
+                            stylers: [{color: '#746855'}]
+                        },
+                        {
+                            featureType: 'road.highway',
+                            elementType: 'geometry.stroke',
+                            stylers: [{color: '#1f2835'}]
+                        },
+                        {
+                            featureType: 'road.highway',
+                            elementType: 'labels.text.fill',
+                            stylers: [{color: '#f3d19c'}]
+                        },
+                        {
+                            featureType: 'transit',
+                            elementType: 'geometry',
+                            stylers: [{color: '#2f3948'}]
+                        },
+                        {
+                            featureType: 'transit.station',
+                            elementType: 'labels.text.fill',
+                            stylers: [{color: '#d59563'}]
+                        },
+                        {
+                            featureType: 'water',
+                            elementType: 'geometry',
+                            stylers: [{color: '#17263c'}]
+                        },
+                        {
+                            featureType: 'water',
+                            elementType: 'labels.text.fill',
+                            stylers: [{color: '#515c6d'}]
+                        },
+                        {
+                            featureType: 'water',
+                            elementType: 'labels.text.stroke',
+                            stylers: [{color: '#17263c'}]
+                        }
+                    ]
+                });
+
+                var myMarker = new google.maps.Marker({
+                    map: map,
+                    animation: google.maps.Animation.DROP,
+                    position: map
+                });
+
+                addYourLocationButton(map, myMarker);
+
+                heatmapP = new google.maps.visualization.HeatmapLayer({
+                    data: getPointsP(),
+                    map: map
+                });
+
+                var southWest = new google.maps.LatLng(32.672318, -117.241110);
+                var northEast = new google.maps.LatLng(33.066844, -117.062118);
+                var southWest1 = new google.maps.LatLng(32.851369, -117.274978);
+                var northEast1 = new google.maps.LatLng(32.813290, -117.010619);
+                var southWest2 = new google.maps.LatLng(32.668324, -117.047011);
+                var northEast2 = new google.maps.LatLng(32.984519, -117.244765);
+                var southWest3 = new google.maps.LatLng(32.939582, -116.987960);
+                var northEast3 = new google.maps.LatLng(32.717442, -117.257125);
+                var lngSpan = northEast.lng() - southWest.lng();
+                var lngSpan = northEast.lng() - southWest.lng();
+                var latSpan = northEast.lat() - southWest.lat();
+                var lngSpan1 = northEast1.lng() - southWest1.lng();
+                var lngSpan1 = northEast1.lng() - southWest1.lng();
+                var latSpan1 = northEast1.lat() - southWest1.lat();
+                var lngSpan2 = northEast2.lng() - southWest2.lng();
+                var lngSpan2 = northEast2.lng() - southWest2.lng();
+                var latSpan2 = northEast2.lat() - southWest2.lat();
+                var lngSpan3 = northEast3.lng() - southWest3.lng();
+                var lngSpan3 = northEast3.lng() - southWest3.lng();
+                var latSpan3 = northEast3.lat() - southWest3.lat();
+
+                // Create some markers
+                var pedestrian = {
+                    url: 'http://maps.google.com/mapfiles/kml/shapes/man.png',
+                    scaledSize: new google.maps.Size(30, 30) // scaled size
+
+                };
+
+
+
+                var gun = {
+                    url: 'http://maps.google.com/mapfiles/kml/pal3/icon41.png',
+                    scaledSize: new google.maps.Size(25, 25) // scaled size
+
+                };
+
+                for (var i = 1; i <= 50; i++) {
+                    var location = new google.maps.LatLng(southWest.lat() + latSpan * Math.random(), southWest.lng() + lngSpan * Math.random());
+                    var location2 = new google.maps.LatLng(southWest2.lat() + latSpan2 * Math.random(), southWest2.lng() + lngSpan2 * Math.random());
+
+                    var marker = new google.maps.Marker({
+                        position: location,
+                        position: location2,
+                        icon: pedestrian,
+                        map: map
+                    });
+                    markers1.push(marker);
+
+                }
+
+                for (i = 1; i <= 25; i++) {
+                    var location1 = new google.maps.LatLng(southWest1.lat() + latSpan1 * Math.random(), southWest1.lng() + lngSpan1 * Math.random());
+                    var location3 = new google.maps.LatLng(southWest3.lat() + latSpan3 * Math.random(), southWest3.lng() + lngSpan3 * Math.random());
+
+                    var marker2 = new google.maps.Marker({
+                        position: location1,
+                        position: location3,
+                        icon: gun,
+                        map: map
+                    });
+                    markers2.push(marker2);
+                }
+            }
+
+            function toggleHeatmap() {
+                heatmapP.setMap(heatmapP.getMap() ? null : map);
+            }
+
+            function setMapOnAllP(map) {
+                for (var i = 0; i < markers1.length; i++) {
+                    markers1[i].setMap(map);
+                }
+            }
+            function hidePedmap() {
+                setMapOnAllP(null);
+            }
+            function showPedmap() {
+                setMapOnAllP(map);
+            }
+            function setMapOnAllG(map) {
+                for (var i = 0; i < markers2.length; i++) {
+                    markers2[i].setMap(map);
+                }
+            }
+            function hideGunshot() {
+                setMapOnAllG(null);
+            }
+            function showGunshot() {
+                setMapOnAllG(map);
+            }
+//           var delMarker = function (id) {
+//            markers1 = markerss1[id]; 
+//            markers1.setMap(null);
+//            } 
+
+            function getPointsP() {
+                var southWest = new google.maps.LatLng(32.672318, -117.241110);
+                var northEast = new google.maps.LatLng(33.066844, -117.062118);
+                var southWest1 = new google.maps.LatLng(32.851369, -117.274978);
+                var northEast1 = new google.maps.LatLng(32.813290, -117.010619);
+                var southWest2 = new google.maps.LatLng(32.668324, -117.047011);
+                var northEast2 = new google.maps.LatLng(32.984519, -117.244765);
+                var southWest3 = new google.maps.LatLng(32.939582, -116.987960);
+                var northEast3 = new google.maps.LatLng(32.717442, -117.257125);
+                var lngSpan = northEast.lng() - southWest.lng();
+                var lngSpan = northEast.lng() - southWest.lng();
+                var latSpan = northEast.lat() - southWest.lat();
+                var lngSpan1 = northEast1.lng() - southWest1.lng();
+                var lngSpan1 = northEast1.lng() - southWest1.lng();
+                var latSpan1 = northEast1.lat() - southWest1.lat();
+                var lngSpan2 = northEast2.lng() - southWest2.lng();
+                var lngSpan2 = northEast2.lng() - southWest2.lng();
+                var latSpan2 = northEast2.lat() - southWest2.lat();
+                var lngSpan3 = northEast3.lng() - southWest3.lng();
+                var lngSpan3 = northEast3.lng() - southWest3.lng();
+                var latSpan3 = northEast3.lat() - southWest3.lat();
+
+                var lotsOfMarkers = [];
+
+                for (var i = 1; i <= 100; i++) {
+
+                    var location = new google.maps.LatLng(southWest.lat() + latSpan * Math.random(), southWest.lng() + lngSpan * Math.random());
+                    lotsOfMarkers.push(location);
+
+                }
+
+                for (i = 1; i <= 100; i++) {
+
+                    var location2 = new google.maps.LatLng(southWest2.lat() + latSpan2 * Math.random(), southWest2.lng() + lngSpan2 * Math.random());
+                    lotsOfMarkers.push(location2);
+                }
+
+                for (i = 1; i <= 10; i++) {
+
+                    var location1 = new google.maps.LatLng(southWest1.lat() + latSpan1 * Math.random(), southWest1.lng() + lngSpan1 * Math.random());
+                    lotsOfMarkers.push(location1);
+                }
+
+                for (i = 1; i <= 10; i++) {
+
+                    var location3 = new google.maps.LatLng(southWest3.lat() + latSpan3 * Math.random(), southWest3.lng() + lngSpan3 * Math.random());
+                    lotsOfMarkers.push(location3);
+                }
+                return lotsOfMarkers;
+            }
+
+
+
+        </script>
+
+        <script>
+            function openNav() {
+                navSize = document.getElementById("mySidenav").style.width;
+                if (navSize === "250px") {
+                    return closeNav();
+                } else {
+                    document.getElementById("mySidenav").style.width = "250px";
+                    document.getElementById("main").style.marginLeft = "250px";
+                }
+            }
+
+            function closeNav() {
+                document.getElementById("mySidenav").style.width = "0";
+                document.getElementById("main").style.marginLeft = "0";
+            }
+        </script>
+
+
+        <script async defer
+                src="https://maps.googleapis.com/maps/api/js?key=&libraries=visualization&callback=initMap">
+        </script>
+
+
+    </body>
+</html>
